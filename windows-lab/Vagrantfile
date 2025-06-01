@@ -1,0 +1,55 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  # Windows Server 2019 Base Box
+  config.vm.box = "StefanScherer/windows_2019"
+  # config.vm.box_version = ">= 1809.0.2404" # StefanScherer/windows_2019 does not need this
+  
+  # VM Configuration
+  config.vm.hostname = "redteam-win-target"
+  
+  # Network Configuration
+  config.vm.network "private_network", ip: "192.168.56.10"
+  config.vm.network "forwarded_port", guest: 80, host: 8082    # HTTP for Web App
+  config.vm.network "forwarded_port", guest: 445, host: 8084  # SMB (no longer primary attack vector)
+  config.vm.network "forwarded_port", guest: 3389, host: 8085  # RDP
+  
+  # VirtualBox Configuration
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "RedTeam-Windows-Lab"
+    vb.memory = "2048"
+    vb.cpus = 2
+    vb.gui = false
+    
+    # VirtualBox optimizations
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+    vb.customize ["modifyvm", :id, "--ioapic", "on"]
+  end
+  
+  # WinRM Configuration - Enhanced for better reliability
+  config.vm.communicator = "winrm"
+  config.winrm.username = "vagrant"
+  config.winrm.password = "vagrant"
+  config.winrm.transport = :negotiate  # More reliable than SSL for StefanScherer box
+  config.winrm.basic_auth_only = false
+  config.winrm.ssl_peer_verification = false
+  config.winrm.retry_limit = 30
+  config.winrm.retry_delay = 10
+  
+  # VM Boot timeout
+  config.vm.boot_timeout = 800  # Increased timeout for Windows boot
+  
+  # Ansible Provisioning
+  config.vm.provision "ansible" do |ansible|
+    ansible.playbook = "ansible/windows-setup.yml"
+    ansible.inventory_path = "ansible/inventory"
+    ansible.limit = "all"
+    ansible.extra_vars = {
+      ansible_connection: "winrm",
+      ansible_winrm_transport: "negotiate", # Match Vagrant WinRM transport
+      ansible_winrm_server_cert_validation: "ignore"
+    }
+  end
+end 

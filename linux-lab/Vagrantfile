@@ -1,0 +1,47 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  # Ubuntu 18.04 Base Box
+  config.vm.box = "ubuntu/bionic64"
+  
+  # VM Configuration
+  config.vm.hostname = "redteam-linux-target"
+  
+  # Boot timeout increase
+  config.vm.boot_timeout = 600
+  
+  # Network Configuration (포트 8081로 변경)
+  config.vm.network "private_network", ip: "192.168.56.20"
+  config.vm.network "forwarded_port", guest: 80, host: 8081   # HTTP
+  config.vm.network "forwarded_port", guest: 22, host: 8022   # SSH
+  config.vm.network "forwarded_port", guest: 3306, host: 8306 # MySQL
+  
+  # VirtualBox Configuration (optimized)
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "RedTeam-Linux-Lab"
+    vb.memory = "2048"  # Increased memory
+    vb.cpus = 2
+    vb.gui = false
+    
+    # VirtualBox optimizations
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+    vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
+    vb.customize ["modifyvm", :id, "--nictype2", "virtio"]
+  end
+  
+  # SSH Configuration (improved)
+  config.ssh.insert_key = true
+  config.ssh.forward_agent = true
+  config.ssh.connect_timeout = 300
+  config.ssh.shell = "bash -l"
+  
+  # Ansible Provisioning
+  config.vm.provision "ansible_local" do |ansible|
+    ansible.playbook = "ansible/linux-setup.yml"
+    ansible.inventory_path = "ansible/inventory"
+    ansible.limit = "all"
+    ansible.install_mode = "pip3"
+  end
+end 

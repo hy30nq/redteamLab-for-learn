@@ -1,0 +1,557 @@
+---
+- name: Red Team Linux Lab Setup
+  hosts: linux_targets
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    web_root: /var/www/html
+    mysql_root_password: rootpass123
+    mysql_db_name: vulndb
+    mysql_user: vulnuser
+    mysql_password: password123
+
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - apache2
+          - mysql-server
+          - php
+          - php-mysql
+          - php-mysqli
+          - libapache2-mod-php
+          - iputils-ping
+          - net-tools
+          - python3-pymysql
+        state: present
+
+    - name: Start and enable services
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - apache2
+        - mysql
+
+    - name: Remove default Apache index.html
+      file:
+        path: "{{ web_root }}/index.html"
+        state: absent
+
+    - name: Create CSS file
+      copy:
+        dest: "{{ web_root }}/assets.css"
+        content: |
+          /* SecureCorp Enterprise Portal Stylesheet */
+          :root {
+              --primary-color: #2563eb;
+              --secondary-color: #475569;
+              --success-color: #059669;
+              --warning-color: #d97706;
+              --danger-color: #dc2626;
+              --dark-color: #1e293b;
+              --light-color: #f8fafc;
+              --border-radius: 6px;
+              --box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+              --transition: all 0.2s ease-in-out;
+          }
+
+          * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+          }
+
+          body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              min-height: 100vh;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              padding: 20px;
+              line-height: 1.6;
+          }
+
+          .container {
+              background: white;
+              padding: 2rem;
+              border-radius: var(--border-radius);
+              box-shadow: var(--box-shadow);
+              max-width: 480px;
+              width: 100%;
+          }
+
+          .logo {
+              text-align: center;
+              margin-bottom: 2rem;
+          }
+
+          .logo h1 {
+              color: var(--primary-color);
+              font-size: 1.875rem;
+              font-weight: 700;
+              margin-bottom: 0.5rem;
+          }
+
+          .logo p {
+              color: var(--secondary-color);
+              font-size: 0.875rem;
+          }
+
+          .form-group {
+              margin-bottom: 1rem;
+          }
+
+          label {
+              display: block;
+              margin-bottom: 0.5rem;
+              color: var(--dark-color);
+              font-weight: 500;
+              font-size: 0.875rem;
+          }
+
+          input[type="text"],
+          input[type="password"] {
+              width: 100%;
+              padding: 0.75rem;
+              border: 1px solid #d1d5db;
+              border-radius: var(--border-radius);
+              font-size: 0.875rem;
+              transition: var(--transition);
+          }
+
+          input[type="text"]:focus,
+          input[type="password"]:focus {
+              outline: none;
+              border-color: var(--primary-color);
+              box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+          }
+
+          .btn {
+              background: var(--primary-color);
+              color: white;
+              padding: 0.75rem 1.5rem;
+              border: none;
+              border-radius: var(--border-radius);
+              font-size: 0.875rem;
+              font-weight: 500;
+              cursor: pointer;
+              transition: var(--transition);
+              width: 100%;
+          }
+
+          .btn:hover {
+              background: #1d4ed8;
+          }
+
+          .btn-secondary {
+              background: var(--secondary-color);
+          }
+
+          .btn-secondary:hover {
+              background: #334155;
+          }
+
+          .alert {
+              padding: 0.75rem;
+              border-radius: var(--border-radius);
+              margin: 1rem 0;
+              font-size: 0.875rem;
+          }
+
+          .alert-success {
+              background: #ecfdf5;
+              color: #065f46;
+              border: 1px solid #a7f3d0;
+          }
+
+          .alert-danger {
+              background: #fef2f2;
+              color: #991b1b;
+              border: 1px solid #fecaca;
+          }
+
+          .admin-panel {
+              background: linear-gradient(135deg, #059669, #10b981);
+              color: white;
+              padding: 1.5rem;
+              border-radius: var(--border-radius);
+              margin: 1rem 0;
+          }
+
+          .admin-panel h3 {
+              margin-bottom: 0.5rem;
+              font-size: 1.125rem;
+          }
+
+          .admin-panel p {
+              font-size: 0.875rem;
+              opacity: 0.9;
+          }
+
+          .tool-section {
+              background: #f8fafc;
+              padding: 1.5rem;
+              border-radius: var(--border-radius);
+              margin-top: 1rem;
+              border: 1px solid #e2e8f0;
+          }
+
+          .tool-section h4 {
+              color: var(--dark-color);
+              margin-bottom: 0.5rem;
+              font-size: 1rem;
+          }
+
+          .tool-section p {
+              color: var(--secondary-color);
+              font-size: 0.875rem;
+              margin-bottom: 1rem;
+          }
+
+          .output {
+              background: #1e293b;
+              color: #e2e8f0;
+              padding: 1rem;
+              border-radius: var(--border-radius);
+              font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+              white-space: pre-wrap;
+              margin-top: 1rem;
+              max-height: 300px;
+              overflow-y: auto;
+              font-size: 0.8rem;
+          }
+
+          .success-indicator {
+              background: linear-gradient(135deg, #059669, #10b981);
+              color: white;
+              padding: 1rem;
+              border-radius: var(--border-radius);
+              text-align: center;
+              font-weight: 600;
+              margin: 1rem 0;
+          }
+
+          .nav-links {
+              text-align: center;
+              margin-top: 1rem;
+          }
+
+          .nav-links a {
+              color: var(--primary-color);
+              text-decoration: none;
+              font-size: 0.875rem;
+              font-weight: 500;
+          }
+
+          .nav-links a:hover {
+              color: var(--dark-color);
+          }
+
+          .system-info {
+              background: #f1f5f9;
+              padding: 0.75rem;
+              border-radius: var(--border-radius);
+              margin-top: 1rem;
+              font-size: 0.8rem;
+              color: var(--secondary-color);
+          }
+
+          @media (max-width: 600px) {
+              .container {
+                  padding: 1.5rem;
+                  margin: 1rem;
+              }
+          }
+
+    - name: Create main index.php
+      copy:
+        dest: "{{ web_root }}/index.php"
+        content: |
+          <?php
+          session_start();
+          
+          // Database connection
+          $host = "localhost";
+          $user = "{{ mysql_user }}";
+          $pass = "{{ mysql_password }}";
+          $db = "{{ mysql_db_name }}";
+          
+          $conn = new mysqli($host, $user, $pass, $db);
+          if ($conn->connect_error) {
+              die("Database connection failed");
+          }
+          
+          // Create users table
+          $conn->query("CREATE TABLE IF NOT EXISTS users (
+              id INT AUTO_INCREMENT PRIMARY KEY, 
+              username VARCHAR(50), 
+              password VARCHAR(50), 
+              role VARCHAR(20) DEFAULT 'user',
+              department VARCHAR(50),
+              last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )");
+          
+          // Insert default users
+          $conn->query("INSERT IGNORE INTO users (id, username, password, role, department) 
+                       VALUES 
+                       (1, 'admin', 'admin123', 'admin', 'IT Security'),
+                       (2, 'jsmith', 'password', 'user', 'Finance'),
+                       (3, 'mwilson', 'welcome123', 'user', 'HR')");
+          
+          $login_result = "";
+          $user_data = null;
+          
+          if(isset($_POST['username']) && isset($_POST['password'])) {
+              $username = $_POST['username'];
+              $password = $_POST['password'];
+              
+              // Vulnerable SQL query
+              $sql = "SELECT * FROM users WHERE username='$username' AND password='$password'";
+              $result = $conn->query($sql);
+              
+              if ($result && $result->num_rows > 0) {
+                  $user_data = $result->fetch_assoc();
+                  $_SESSION['user'] = $user_data;
+                  $login_result = "success";
+                  
+                  // Update last login
+                  $conn->query("UPDATE users SET last_login=NOW() WHERE id=" . $user_data['id']);
+              } else {
+                  $login_result = "failed";
+              }
+          }
+          
+          if(isset($_SESSION['user'])) {
+              $user_data = $_SESSION['user'];
+          }
+          ?>
+          
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>SecureCorp - Employee Portal</title>
+              <link rel="stylesheet" href="assets.css">
+          </head>
+          <body>
+              <div class="container">
+                  <div class="logo">
+                      <h1>🏢 SecureCorp</h1>
+                      <p>Employee Access Portal</p>
+                  </div>
+                  
+                  <?php if($user_data && $user_data['role'] == 'admin'): ?>
+                      <div class="alert alert-success">
+                          Welcome back, <?php echo htmlspecialchars($user_data['username']); ?>
+                      </div>
+                      
+                      <div class="success-indicator">
+                          Access Granted - RT{SQL_AUTH_BYPASS_2025}
+                      </div>
+                      
+                      <div class="admin-panel">
+                          <h3>System Administration</h3>
+                          <p><?php echo htmlspecialchars($user_data['department']); ?> - Administrative Tools</p>
+                      </div>
+                      
+                      <div class="tool-section">
+                          <h4>Network Diagnostics</h4>
+                          <p>Test connectivity to internal and external hosts</p>
+                          
+                          <form method="post" action="diagnostics.php">
+                              <div class="form-group">
+                                  <label for="target">Target Host</label>
+                                  <input type="text" 
+                                         id="target" 
+                                         name="target" 
+                                         placeholder="Enter hostname or IP address"
+                                         value="securecorp.local">
+                              </div>
+                              <button type="submit" class="btn">Run Diagnostics</button>
+                          </form>
+                      </div>
+                      
+                      <div class="system-info">
+                          Last login: <?php echo $user_data['last_login']; ?> | Session: Active
+                      </div>
+                      
+                  <?php elseif($user_data): ?>
+                      <div class="alert alert-success">
+                          Welcome, <?php echo htmlspecialchars($user_data['username']); ?>
+                      </div>
+                      
+                      <div class="tool-section">
+                          <h4>Employee Dashboard</h4>
+                          <p>Department: <?php echo htmlspecialchars($user_data['department']); ?></p>
+                          <p>Access Level: Standard User</p>
+                          <p style="color: #dc2626; font-weight: 500;">Administrative tools require elevated privileges.</p>
+                      </div>
+                      
+                  <?php else: ?>
+                      <?php if($login_result == "failed"): ?>
+                          <div class="alert alert-danger">
+                              Authentication failed. Please verify your credentials.
+                          </div>
+                      <?php endif; ?>
+                      
+                      <form method="post">
+                          <div class="form-group">
+                              <label for="username">Employee ID</label>
+                              <input type="text" 
+                                     id="username" 
+                                     name="username" 
+                                     placeholder="Enter your employee ID"
+                                     required>
+                          </div>
+                          
+                          <div class="form-group">
+                              <label for="password">Password</label>
+                              <input type="password" 
+                                     id="password" 
+                                     name="password" 
+                                     placeholder="Enter your password"
+                                     required>
+                          </div>
+                          
+                          <button type="submit" class="btn">Sign In</button>
+                      </form>
+                      
+                      <div class="system-info">
+                          SecureCorp Portal v2.1.4 | Contact IT Support: ext. 4422
+                      </div>
+                  <?php endif; ?>
+              </div>
+          </body>
+          </html>
+
+    - name: Create diagnostics.php
+      copy:
+        dest: "{{ web_root }}/diagnostics.php"
+        content: |
+          <?php
+          session_start();
+          
+          // Check admin access
+          if(!isset($_SESSION['user']) || $_SESSION['user']['role'] != 'admin') {
+              header('Location: index.php');
+              exit;
+          }
+          
+          $output = "";
+          $target = "";
+          $command_executed = "";
+          
+          if(isset($_POST['target'])) {
+              $target = $_POST['target'];
+              
+              // Vulnerable command execution
+              $cmd = "ping -c 4 " . $target;
+              $command_executed = $cmd;
+              
+              $output = shell_exec($cmd . " 2>&1");
+          }
+          ?>
+          
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Network Diagnostics - SecureCorp</title>
+              <link rel="stylesheet" href="assets.css">
+          </head>
+          <body>
+              <div class="container">
+                  <div class="logo">
+                      <h1>🌐 Network Diagnostics</h1>
+                      <p>SecureCorp Infrastructure Tools</p>
+                  </div>
+                  
+                  <div class="tool-section">
+                      <h4>Connectivity Test</h4>
+                      <p>Verify network connectivity to specified hosts</p>
+                      
+                      <form method="post">
+                          <div class="form-group">
+                              <label for="target">Target Host</label>
+                              <input type="text" 
+                                     id="target" 
+                                     name="target" 
+                                     placeholder="hostname or IP address"
+                                     value="<?php echo htmlspecialchars($target); ?>">
+                          </div>
+                          <button type="submit" class="btn">Execute Test</button>
+                      </form>
+                      
+                      <?php if($output): ?>
+                          <div class="alert alert-success">
+                              Command: <code><?php echo htmlspecialchars($command_executed); ?></code>
+                          </div>
+                          
+                          <div class="output"><?php echo htmlspecialchars($output); ?></div>
+                      <?php endif; ?>
+                  </div>
+                  
+                  <div class="nav-links">
+                      <a href="index.php">← Return to Portal</a>
+                  </div>
+                  
+                  <div class="system-info">
+                      Diagnostics v1.3.2 | Admin: <?php echo htmlspecialchars($_SESSION['user']['username']); ?>
+                  </div>
+              </div>
+          </body>
+          </html>
+
+    - name: Setup MySQL database
+      mysql_db:
+        name: "{{ mysql_db_name }}"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Create MySQL user
+      mysql_user:
+        name: "{{ mysql_user }}"
+        password: "{{ mysql_password }}"
+        priv: "{{ mysql_db_name }}.*:ALL"
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Configure sudo for www-data
+      lineinfile:
+        path: /etc/sudoers
+        line: "www-data ALL=(ALL) NOPASSWD: /usr/bin/env"
+        state: present
+        validate: 'visudo -cf %s'
+
+    - name: Create root flag
+      copy:
+        content: "RT{ROOT_PRIVILEGE_ESCALATION_SUCCESS_2025}"
+        dest: /root/flag.txt
+        mode: '0600'
+        owner: root
+        group: root
+
+    - name: Restart Apache
+      systemd:
+        name: apache2
+        state: restarted
+
+    - name: Display setup completion
+      debug:
+        msg: |
+          ===== Red Team Linux Lab Setup Complete =====
+          🌐 Portal: http://localhost:8081
+          🔐 SecureCorp Employee Portal with realistic authentication
+          🛠️ Network diagnostics tools for administrators
+          🎯 Ready for SQL Injection → Command Injection → Privilege Escalation 

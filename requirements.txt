@@ -1,0 +1,5 @@
+﻿ansible>=8.0.0
+ansible-core>=2.15.0
+pywinrm>=0.4.3
+requests>=2.31.0
+packaging>=23.0
